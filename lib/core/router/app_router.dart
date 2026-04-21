@@ -27,6 +27,7 @@ import '../../features/admin/screens/admin_worldview_editor.dart';
 import '../../features/admin/screens/admin_scenario_editor.dart';
 import '../../features/admin/screens/admin_mode_addons_editor.dart';
 import '../../features/admin/screens/admin_costs_editor.dart';
+import '../../features/admin/screens/admin_system_config_editor.dart';
 import '../../features/auth/auth_providers.dart';
 import '../constants/route_names.dart';
 import '../l10n/app_localizations.dart';
@@ -200,6 +201,11 @@ GoRouter createRouter(Ref ref) {
         path: RouteNames.adminCosts,
         name: 'adminCosts',
         builder: (context, state) => const AdminCostsEditor(),
+      ),
+      GoRoute(
+        path: RouteNames.adminSystemConfig,
+        name: 'adminSystemConfig',
+        builder: (context, state) => const AdminSystemConfigEditor(),
       ),
       // Shell route for bottom navigation (Home / Game / Missions / Profile)
       ShellRoute(

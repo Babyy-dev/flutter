@@ -258,23 +258,33 @@ class GameModeSelectionScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: [
                 ...modes.map(
-                  (mode) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GameModeCard(
-                      modeKey: mode.key,
-                      title: mode.title,
-                      description: mode.desc,
-                      icon: mode.icon,
-                      ticketCost: ticketCosts[mode.key] ?? 1,
-                      isSelected: selectedMode == mode.key,
-                      isLocked: !mode.available,
-                      lockReason: mode.lockReason,
-                      onTap: () {
-                        ref.read(selectedGameModeProvider.notifier).state =
-                            mode.key;
-                      },
-                    ),
-                  ),
+                  (mode) {
+                    final int cardCost;
+                    if (mode.key == 'practice') {
+                      cardCost = 0;
+                    } else if (selectedModel == ModelChoice.claude) {
+                      cardCost = ticketCosts['claude'] ?? 3;
+                    } else {
+                      cardCost = ticketCosts[mode.key] ?? 1;
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: GameModeCard(
+                        modeKey: mode.key,
+                        title: mode.title,
+                        description: mode.desc,
+                        icon: mode.icon,
+                        ticketCost: cardCost,
+                        isSelected: selectedMode == mode.key,
+                        isLocked: !mode.available,
+                        lockReason: mode.lockReason,
+                        onTap: () {
+                          ref.read(selectedGameModeProvider.notifier).state =
+                              mode.key;
+                        },
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

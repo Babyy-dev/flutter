@@ -26,4 +26,5 @@ class RouteNames {
   static const String adminScenarios = '/admin/scenarios';
   static const String adminModeAddons = '/admin/mode-addons';
   static const String adminCosts = '/admin/costs';
+  static const String adminSystemConfig = '/admin/system-config';
 }

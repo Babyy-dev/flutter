@@ -8,6 +8,15 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/error_snackbar.dart';
 import '../../../services/game_config/game_config_providers.dart';
 
+const _kDefaultStatKeys = [
+  'strength',
+  'intellect',
+  'skill',
+  'magic',
+  'art',
+  'life',
+];
+
 class AdminScenarioEditor extends ConsumerStatefulWidget {
   const AdminScenarioEditor({super.key});
 
@@ -28,6 +37,8 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
   final _difficultyController = TextEditingController();
   String _battleType = 'standard';
   bool _isFree = false;
+  String _worldviewKey = AppConstants.defaultWorldviewKey;
+  Map<String, TextEditingController> _enemyStatControllers = {};
 
   @override
   void dispose() {
@@ -38,14 +49,33 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
     _commanderDefController.dispose();
     _commanderDefJaController.dispose();
     _difficultyController.dispose();
+    for (final c in _enemyStatControllers.values) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  void _initEnemyStatControllers(Map<String, int> existingStats) {
+    for (final c in _enemyStatControllers.values) {
+      c.dispose();
+    }
+    final statKeys = existingStats.isNotEmpty ? existingStats.keys.toList() : _kDefaultStatKeys;
+    _enemyStatControllers = {
+      for (final key in statKeys)
+        key: TextEditingController(text: (existingStats[key] ?? 0).toString()),
+    };
   }
 
   void _loadScenario(String id) {
     final config = ref.read(gameConfigProvider);
     final s = config.scenarios[id];
     if (s == null) return;
-    setState(() => _selectedId = id);
+    setState(() {
+      _selectedId = id;
+      _battleType = s.battleType.name;
+      _isFree = s.isFree;
+      _worldviewKey = s.worldviewKey.isNotEmpty ? s.worldviewKey : AppConstants.defaultWorldviewKey;
+    });
     _titleController.text = s.title;
     _titleJaController.text = s.titleJa ?? '';
     _enemyNameController.text = s.enemyName;
@@ -53,8 +83,7 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
     _commanderDefController.text = s.commanderDefinition;
     _commanderDefJaController.text = s.commanderDefinitionJa ?? '';
     _difficultyController.text = s.difficulty.toString();
-    _battleType = s.battleType.name;
-    _isFree = s.isFree;
+    setState(() => _initEnemyStatControllers(s.enemyStats));
   }
 
   Future<void> _save() async {
@@ -64,6 +93,10 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
     try {
       final config = ref.read(gameConfigProvider);
       final existing = config.scenarios[_selectedId];
+      final enemyStats = <String, int>{};
+      for (final entry in _enemyStatControllers.entries) {
+        enemyStats[entry.key] = int.tryParse(entry.value.text) ?? 0;
+      }
       await FirebaseFirestore.instance
           .collection(AppConstants.firestoreSystemConfig)
           .doc(AppConstants.firestoreGameConfig)
@@ -80,8 +113,9 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
             'difficulty': int.tryParse(_difficultyController.text) ?? 1,
             'battleType': _battleType,
             'isFree': _isFree,
-            'worldviewKey': existing?.worldviewKey ?? '1830_fantasy',
+            'worldviewKey': _worldviewKey,
             'isUnlocked': existing?.isUnlocked ?? true,
+            'enemyStats': enemyStats,
           },
         },
       }, SetOptions(merge: true));
@@ -137,8 +171,9 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
               'difficulty': 1,
               'battleType': 'standard',
               'isFree': false,
-              'worldviewKey': '1830_fantasy',
+              'worldviewKey': AppConstants.defaultWorldviewKey,
               'isUnlocked': true,
+              'enemyStats': {for (final k in _kDefaultStatKeys) k: 0},
             },
           },
         }, SetOptions(merge: true));
@@ -184,6 +219,8 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
     final l10n = AppLocalizations.of(context)!;
     final config = ref.watch(gameConfigProvider);
     final scenarios = config.scenarios;
+    final worldviewKeys = config.worldviews.keys.toList();
+    if (worldviewKeys.isEmpty) worldviewKeys.add(AppConstants.defaultWorldviewKey);
 
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
@@ -248,30 +285,49 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
                       _AdminField(label: l10n.adminCommanderDef, controller: _commanderDefController, maxLines: 6),
                       _AdminField(label: '${l10n.adminCommanderDef} (JA)', controller: _commanderDefJaController, maxLines: 6),
                       _AdminField(label: l10n.adminDifficulty, controller: _difficultyController),
-                      // Battle type dropdown
+
+                      // Worldview key dropdown
+                      _SectionLabel(label: 'WORLDVIEW'),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(l10n.adminBattleType, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted, fontSize: 11)),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              initialValue: _battleType,
-                              dropdownColor: AppColors.navyMid,
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: AppColors.cardSurface,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderSubtle)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              ),
-                              items: ['standard', 'boss', 'history'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                              onChanged: (v) => setState(() => _battleType = v ?? 'standard'),
-                            ),
-                          ],
+                        child: DropdownButtonFormField<String>(
+                          value: worldviewKeys.contains(_worldviewKey) ? _worldviewKey : worldviewKeys.first,
+                          dropdownColor: AppColors.navyMid,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: AppColors.cardSurface,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderSubtle)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: worldviewKeys
+                              .map((k) => DropdownMenuItem(value: k, child: Text(k, style: TextStyle(fontSize: 12))))
+                              .toList(),
+                          onChanged: (v) => setState(() => _worldviewKey = v ?? AppConstants.defaultWorldviewKey),
                         ),
                       ),
+
+                      // Battle type dropdown
+                      _SectionLabel(label: l10n.adminBattleType.toUpperCase()),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: DropdownButtonFormField<String>(
+                          value: _battleType,
+                          dropdownColor: AppColors.navyMid,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: AppColors.cardSurface,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderSubtle)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: ['standard', 'boss', 'history']
+                              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                              .toList(),
+                          onChanged: (v) => setState(() => _battleType = v ?? 'standard'),
+                        ),
+                      ),
+
                       // Free toggle
                       SwitchListTile(
                         value: _isFree,
@@ -280,7 +336,16 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
                         activeTrackColor: AppColors.goldAccent,
                         contentPadding: EdgeInsets.zero,
                       ),
+                      const SizedBox(height: 8),
+
+                      // Enemy stats section
+                      _SectionLabel(label: 'ENEMY STATS'),
+                      ..._enemyStatControllers.entries.map((entry) => _StatRow(
+                            label: entry.key,
+                            controller: entry.value,
+                          )),
                       const SizedBox(height: 12),
+
                       ElevatedButton(
                         onPressed: _isSaving ? null : _save,
                         style: ElevatedButton.styleFrom(
@@ -294,6 +359,65 @@ class _AdminScenarioEditorState extends ConsumerState<AdminScenarioEditor> {
                       ),
                     ],
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(
+          color: AppColors.textMuted,
+          letterSpacing: 1.5,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  const _StatRow({required this.label, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSecondary)),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 70,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.labelLarge.copyWith(color: AppColors.goldAccent),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.cardSurface,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderSubtle)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderSubtle)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.goldAccent)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              ),
+            ),
           ),
         ],
       ),

@@ -58,6 +58,15 @@ class AdminPanelScreen extends ConsumerWidget {
             count: config.ticketCosts.length + config.modelConfig.length,
             onTap: () => context.push(RouteNames.adminCosts),
           ),
+          const SizedBox(height: 12),
+          _AdminCard(
+            icon: Icons.settings,
+            iconColor: AppColors.steelLight,
+            title: 'System Config',
+            subtitle: 'Fallback prompt, dev UIDs, ad units',
+            count: config.devUids.length,
+            onTap: () => context.push(RouteNames.adminSystemConfig),
+          ),
         ],
       ),
     );
