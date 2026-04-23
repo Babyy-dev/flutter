@@ -505,6 +505,37 @@ class SettingsScreen extends ConsumerWidget {
                         ],
                       ),
 
+                      // TEMP: UID debug display
+                      const SizedBox(height: 20),
+                      Builder(builder: (context) {
+                        final myUid = authState.valueOrNull?.uid ?? 'not logged in';
+                        final streamValue = ref.watch(gameConfigStreamProvider);
+                        final streamState = streamValue.when(
+                          data: (c) => 'data: devUids=${c.devUids}',
+                          loading: () => 'LOADING...',
+                          error: (e, _) => 'ERROR: $e',
+                        );
+                        final config = ref.watch(gameConfigProvider);
+                        final isMatch = config.devUids.contains(myUid);
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            border: Border.all(color: Colors.red),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('DEBUG', style: TextStyle(color: Colors.red, fontSize: 11)),
+                              SelectableText('UID: $myUid', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                              SelectableText('Stream: $streamState', style: const TextStyle(color: Colors.yellow, fontSize: 11)),
+                              Text('Match: $isMatch', style: TextStyle(color: isMatch ? Colors.green : Colors.red, fontSize: 11)),
+                            ],
+                          ),
+                        );
+                      }),
+
                       // ADMIN section (only visible to admin users)
                       if (ref.watch(isAdminProvider)) ...[
                         const SizedBox(height: 20),

@@ -26,9 +26,9 @@ class GameConfigModel {
 
   factory GameConfigModel.fromJson(Map<String, dynamic> json) {
     // Parse worldviews
-    final worldviewsRaw = json['worldviews'] as Map<dynamic, dynamic>?;
+    final worldviewsRaw = json['worldviews'];
     final worldviews = <String, WorldviewModel>{};
-    if (worldviewsRaw != null) {
+    if (worldviewsRaw is Map) {
       for (final entry in worldviewsRaw.entries) {
         final key = entry.key.toString();
         try {
@@ -68,9 +68,9 @@ class GameConfigModel {
     }
 
     // Parse scenarios
-    final scenariosRaw = json['scenarios'] as Map<dynamic, dynamic>?;
+    final scenariosRaw = json['scenarios'];
     final scenarios = <String, ScenarioModel>{};
-    if (scenariosRaw != null) {
+    if (scenariosRaw is Map) {
       for (final entry in scenariosRaw.entries) {
         final key = entry.key.toString();
         try {
@@ -106,37 +106,36 @@ class GameConfigModel {
     }
 
     // Parse mode addons (support both camelCase and snake_case keys from Firestore)
-    final modeAddonsRaw = (json['modeAddons'] ?? json['mode_addons']) as Map<dynamic, dynamic>?;
-    final modeAddons = modeAddonsRaw?.map(
-          (k, v) => MapEntry(k.toString(), v.toString()),
-        ) ??
-        {};
+    final modeAddonsRaw = json['modeAddons'] ?? json['mode_addons'];
+    final modeAddons = modeAddonsRaw is Map
+        ? modeAddonsRaw.map((k, v) => MapEntry(k.toString(), v.toString()))
+        : <String, String>{};
 
     // Parse ticket costs (support both camelCase and snake_case)
-    final ticketCostsRaw = (json['ticketCosts'] ?? json['ticket_costs']) as Map<dynamic, dynamic>?;
-    final ticketCosts = ticketCostsRaw?.map(
-          (k, v) => MapEntry(k.toString(), (v as num).toInt()),
-        ) ??
-        {
-          'normal': 1,
-          'tabletop': 2,
-          'epic': 3,
-          'boss': 5,
-          'practice': 0,
-          'pvp': 1,
-          'claude': 3,
-        };
+    final ticketCostsRaw = json['ticketCosts'] ?? json['ticket_costs'];
+    final ticketCosts = ticketCostsRaw is Map
+        ? ticketCostsRaw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()))
+        : {
+            'normal': 1,
+            'tabletop': 2,
+            'epic': 3,
+            'boss': 5,
+            'practice': 0,
+            'pvp': 1,
+            'claude': 3,
+          };
 
     // Parse model config
-    final modelConfigRaw = (json['modelConfig'] ?? json['model_config']) as Map<dynamic, dynamic>?;
-    final modelConfig = modelConfigRaw?.map(
-          (k, v) => MapEntry(k.toString(), v.toString()),
-        ) ??
-        {};
+    final modelConfigRaw = json['modelConfig'] ?? json['model_config'];
+    final modelConfig = modelConfigRaw is Map
+        ? modelConfigRaw.map((k, v) => MapEntry(k.toString(), v.toString()))
+        : <String, String>{};
 
     // Parse dev UIDs
-    final devUidsRaw = (json['devUids'] ?? json['dev_uids']) as List<dynamic>?;
-    final devUids = devUidsRaw?.map((e) => e.toString()).toList() ?? [];
+    final devUidsRaw = json['devUids'] ?? json['dev_uids'];
+    final devUids = devUidsRaw is List
+        ? devUidsRaw.map((e) => e.toString()).toList()
+        : <String>[];
 
     // Fallback prompt
     final fallbackPrompt = (json['fallbackPrompt'] ?? json['fallback_prompt']) as String?;
